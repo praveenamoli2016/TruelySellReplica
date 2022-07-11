@@ -1,16 +1,13 @@
 package com.kaamcube.truelysell.service.impl;
 
-import com.kaamcube.truelysell.model.entity.BookedServices;
-import com.kaamcube.truelysell.model.entity.Customer;
-import com.kaamcube.truelysell.model.entity.VendorServices;
+import com.kaamcube.truelysell.model.entity.*;
 import com.kaamcube.truelysell.model.request.*;
 import com.kaamcube.truelysell.model.responce.CustomerRegisterResponse;
 import com.kaamcube.truelysell.model.responce.Response;
-import com.kaamcube.truelysell.repository.BookedServicesRepo;
-import com.kaamcube.truelysell.repository.CustomerRepo;
-import com.kaamcube.truelysell.repository.VendorServiceRepo;
+import com.kaamcube.truelysell.repository.*;
 import com.kaamcube.truelysell.service.CustomerService;
 import com.kaamcube.truelysell.utility.TruelySellUtility;
+import com.kaamcube.truelysell.utility.enums.Status;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -26,6 +23,12 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Autowired
     private BookedServicesRepo bookedServicesRepo;
+
+    @Autowired
+    private WalletRepo walletRepo;
+
+    @Autowired
+    private CustomerWalletTransactionsRepo customerWalletTransactionsRepo;
 
     @Override
     public Response registerCustomer(RegistrationRequest customerRequest) {
@@ -56,15 +59,29 @@ public class CustomerServiceImpl implements CustomerService {
             //updating otp in Database
             customerRepo.save(customerData);
 
+            //create a wallet for customer
+            createWallet(customerData);
         } catch (Exception exception) {
             response = new Response("Failure", "500", exception.getMessage(), null);
         }
         return response;
     }
 
+    private Wallet createWallet(Customer customerData) {
+        //create a wallet for customer
+        Wallet wallet = new Wallet();
+        wallet.setCustomer(customerData);
+        wallet.setBalance(0.0);
+        wallet.setTotalCredit(0.0);
+        wallet.setTotalDebit(0.0);
+        wallet.setStatus(Status.ACTIVE);
+        wallet.setCreatedAt(LocalDateTime.now().toString());
+        return walletRepo.save(wallet);
+    }
+
     @Override
     public Response otpValidation(OtpRequest otpRequest) {
-        Response response=null;
+        Response response = null;
         try {
             Optional<Customer> customerOptional = customerRepo.findByMobileNumber(otpRequest.getMobileNo());
             if (customerOptional.isPresent()) {
@@ -75,7 +92,7 @@ public class CustomerServiceImpl implements CustomerService {
                     response = new Response("Failure", "401", "otp mismatched", null);
                 }
             } else {
-                response = new Response("Failure", "404", "Cutomer not found with given mobile number", null);
+                response = new Response("Failure", "404", "Customer not found with given mobile number", null);
             }
         } catch (Exception exception) {
             response = new Response("Failure", "500", exception.getMessage(), null);
@@ -113,7 +130,7 @@ public class CustomerServiceImpl implements CustomerService {
                 Customer customer = customerOptional.get();
                 response = new Response("Success", "200", "Customer fetched successfully", customer);
             } else {
-                response = new Response("Failure", "404", "Customer not found ",null);
+                response = new Response("Failure", "404", "Customer not found ", null);
             }
         } catch (Exception exception) {
             response = new Response("Failure", "500", exception.getMessage(), null);
@@ -158,6 +175,7 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Autowired
     private VendorServiceRepo vendorServiceRepo;
+
     @Override
     public Response bookService(BookServiceRequest bookServiceRequest) {
         Response response = null;
@@ -185,11 +203,12 @@ public class CustomerServiceImpl implements CustomerService {
             bookedServices.setNotes(bookServiceRequest.getNotes());
             bookedServices.setPaymentMethod(bookServiceRequest.getPaymentMethod());
             bookedServices.setTimeSlot(bookServiceRequest.getTimeSlot());
+            bookedServices.setStatus(bookServiceRequest.getStatus());
             //saving data in database
             BookedServices bookedService = bookedServicesRepo.save(bookedServices);
             //sending response
             response = new Response("Success", "201", "Service Booked Successfully", bookedService);
-        } catch (Exception exception){
+        } catch (Exception exception) {
             response = new Response("Failure", "500", exception.getMessage(), null);
         }
         return response;
@@ -209,6 +228,97 @@ public class CustomerServiceImpl implements CustomerService {
             response = new Response("Failure", "500", exception.getMessage(), null);
         }
         return response;
+    }
+
+    @Override
+    public Response getWalletAmount(Long customerId) {
+        Response response = null;
+        try {
+            Optional<Customer> customer = customerRepo.findById(customerId);
+            if (customer.isPresent()) {
+                Optional<Wallet> wallet = walletRepo.findByCustomerId(customerId);
+                if (wallet.isPresent()) {
+                    response = new Response("Success", "200", "Wallet details ", wallet.get());
+                } else {
+                    Wallet newWallet = createWallet(customer.get());
+                    response = new Response("Success", "200", "Wallet details ", newWallet);
+                }
+            } else
+                throw new Exception("Customer not found");
+        } catch (Exception exception) {
+            response = new Response("Failure", "500", exception.getMessage(), null);
+        }
+        return response;
+    }
+
+    @Override
+    public Response addWalletAmount(AddWalletAmountRequest addWalletAmountRequest) {
+        Response response = null;
+        try {
+            Optional<Customer> customerOptional = customerRepo.findById(addWalletAmountRequest.getCustomerId());
+            if (customerOptional.isPresent()) {
+                Optional<Wallet> walletOptional = walletRepo.findByCustomerId(addWalletAmountRequest.getCustomerId());
+                Double balance = 0.0;
+                if (walletOptional.isPresent()) {
+                    Wallet wallet = walletOptional.get();
+                    balance = wallet.getBalance();
+                    wallet.setBalance(wallet.getBalance() + addWalletAmountRequest.getAmount());
+                    wallet.setUpdatedAt(LocalDateTime.now().toString());
+                    wallet = walletRepo.save(wallet);
+
+                    //add data in wallet transaction
+                    WalletTransactions walletTransactions = addWalletTransaction(balance, customerOptional.get(), addWalletAmountRequest);
+                    response = new Response("Success", "200", "Wallet details ", wallet);
+                } else {
+                    Wallet wallet = createWallet(customerOptional.get());
+                    balance = wallet.getBalance();
+                    wallet.setBalance(wallet.getBalance() + addWalletAmountRequest.getAmount());
+                    wallet.setUpdatedAt(LocalDateTime.now().toString());
+                    wallet = walletRepo.save(wallet);
+
+                    //add data in wallet transaction
+                    WalletTransactions walletTransactions = addWalletTransaction(balance, customerOptional.get(), addWalletAmountRequest);
+                    response = new Response("Success", "200", "Wallet details ", wallet);
+                }
+            } else
+                throw new Exception("Customer not found");
+
+        } catch (Exception exception) {
+            response = new Response("Failure", "500", exception.getMessage(), null);
+        }
+        return response;
+    }
+
+    @Override
+    public Response getWalletTransaction(Long customerId) {
+        Response response = null;
+        try {
+            Optional<Customer> customerOptional = customerRepo.findById(customerId);
+            if (customerOptional.isPresent()) {
+                List<WalletTransactions> walletTransactions = customerWalletTransactionsRepo.findByCustomerId(customerId);
+                response = new Response("Success", "200", "Wallet Transactions details ", walletTransactions);
+            } else {
+                throw new Exception("Customer not found");
+            }
+
+        } catch (Exception exception) {
+            response = new Response("Failure", "500", exception.getMessage(), null);
+        }
+        return response;
+    }
+
+
+    public WalletTransactions addWalletTransaction(Double balance, Customer customer, AddWalletAmountRequest addWalletAmountRequest) {
+        WalletTransactions walletTransactions = new WalletTransactions();
+        walletTransactions.setWallet(balance);
+        walletTransactions.setCustomer(customer);
+        walletTransactions.setTxtAmount(addWalletAmountRequest.getAmount());
+        walletTransactions.setAvailable(balance + addWalletAmountRequest.getAmount());
+        walletTransactions.setCredit(addWalletAmountRequest.getAmount() > 0.0);
+        walletTransactions.setDebit(addWalletAmountRequest.getAmount() < 0.0);
+        walletTransactions.setDate(addWalletAmountRequest.getDate());
+        walletTransactions.setReason("-");
+        return customerWalletTransactionsRepo.save(walletTransactions);
     }
 }
 

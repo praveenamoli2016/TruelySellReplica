@@ -1,18 +1,18 @@
 package com.kaamcube.truelysell.model.entity;
 
 import com.fasterxml.jackson.annotation.JsonIdentityReference;
+import com.kaamcube.truelysell.utility.enums.AddWallet;
 import com.kaamcube.truelysell.utility.enums.PaymentMethod;
 import com.kaamcube.truelysell.utility.enums.Status;
 import lombok.Getter;
 import lombok.Setter;
 
 import javax.persistence.*;
-
 @Getter
 @Setter
-@Entity(name = "booked_services")
-public class BookedServices {
-
+@Entity
+@Table(name = "wallet")
+public class Wallet {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
@@ -22,31 +22,17 @@ public class BookedServices {
     @JoinColumn(name = "customer_id", nullable = false)
     private Customer customer;
 
-    @JsonIdentityReference(alwaysAsId=true)
-    @OneToOne
-    @JoinColumn(name = "service_id", nullable = false)
-    private VendorServices vendorServices;
+    @Column(name = "balance")
+    private Double Balance;
 
-    @Column(name = "service_location")
-    private String serviceLocation;
+    @Column(name = "total_credit")
+    private Double totalCredit;
 
-    @Column(name = "service_amount")
-    private String serviceAmount;
-
-    @Column(name = "date")
-    private String date;
-
-    @Column(name = "time_slot")
-    private String timeSlot;
-
-    @Column(name = "notes")
-    private String notes;
-
-    @Column(name = "payment_method")
-    private PaymentMethod paymentMethod;
+    @Column(name = "total_debit")
+    private Double totalDebit;
 
     @Column(name = "status")
-    private  Status status;
+    private Status status;
 
     @Column(name = "created_at")
     private String createdAt;

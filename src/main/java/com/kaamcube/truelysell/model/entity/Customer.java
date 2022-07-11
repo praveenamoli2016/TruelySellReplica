@@ -6,6 +6,7 @@ import lombok.Data;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotBlank;
+import java.util.List;
 
 @Data
 @Entity(name="customer")
@@ -41,41 +42,43 @@ public class Customer {
     @Column(name= "date_of_birth")
     private String dateOfBirth;
 
-    @NotBlank(message = "TermAndCondition is mandatory")
     @Column(name = "terms_condition")
     private Boolean termsAndCondition;
 
-    @NotBlank(message = "Address is mandatory")
     @Column(name= "address")
     private String address;
 
-    @NotBlank(message = "Name is mandatory")
     @Column(name= "country")
     private String country;
 
-    @NotBlank(message = "Country is mandatory")
     @Column(name= "state")
     private String state;
 
-    @NotBlank(message = "State is mandatory")
     @Column(name= "city")
     private String city;
 
-    @NotBlank(message = "City is mandatory")
     @Column(name= "postal_code")
     private int postalCode;
 
-    @NotBlank(message = "CreateDate is mandatory")
     @Column(name = "created_date")
     private String createdDate;
 
-    @NotBlank(message = "Updated is mandatory")
     @Column(name = "updated_date")
     private String updatedDate;
 
     @JsonIdentityReference(alwaysAsId=true)
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    @OneToOne(
-            mappedBy = "customer")
+    @OneToOne(mappedBy = "customer")
     private BookedServices bookedServices;
+
+    @JsonIdentityReference(alwaysAsId=true)
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @OneToOne(mappedBy = "customer")
+    private Wallet wallet;
+
+    @JsonIdentityReference(alwaysAsId=true)
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @OneToMany(mappedBy = "customer")
+    private List<WalletTransactions> walletTransactions;
+
 }

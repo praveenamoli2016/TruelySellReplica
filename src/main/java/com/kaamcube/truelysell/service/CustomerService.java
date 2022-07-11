@@ -17,4 +17,10 @@ public interface CustomerService {
     Response bookService(BookServiceRequest bookServiceRequest);
 
     Response getCustomerBooking(Long customerId);
+
+    Response getWalletAmount(Long customerId);
+
+    Response addWalletAmount(AddWalletAmountRequest addWalletAmountRequest);
+
+    Response getWalletTransaction(Long customerId);
 }

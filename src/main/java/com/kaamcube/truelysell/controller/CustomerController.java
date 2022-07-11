@@ -46,4 +46,19 @@ public class CustomerController {
     public Response getCustomerBooking(@RequestParam Long customerId){
         return customerService.getCustomerBooking(customerId);
     }
+
+    @GetMapping("/getWalletAmount")
+    public Response getWalletAmount(@RequestParam Long customerId){
+        return customerService.getWalletAmount(customerId);
+    }
+
+    @PostMapping("/addWalletAmount")
+    public Response addWalletAmount(@RequestBody AddWalletAmountRequest addWalletAmountRequest){
+        return customerService.addWalletAmount(addWalletAmountRequest);
+    }
+
+    @GetMapping("/getWalletTransaction")
+    public Response getWalletTransaction(@RequestParam Long customerId){
+        return customerService.getWalletTransaction(customerId);
+    }
 }
